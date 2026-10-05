@@ -84,42 +84,39 @@
       const hostMatch = url.match(/https?:\/\/([^/]+)/i);
       const currentHost = hostMatch ? hostMatch[1] : '';
 
-      // 1. YouTube (VOD, Shorts, Live, youtu.be)
+      // ==========================================
+      //           1. ОСНОВНЫЕ МЕДИАСЕРВИСЫ
+      // ==========================================
+
+      // YouTube (VOD, Shorts, Live, youtu.be)
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
       if (ytMatch) {
         initYouTube(ytMatch[1]);
         return;
       }
 
-      // 2. Twitch (Клипы)
+      // Twitch (Клипы)
       const twitchClip = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
       if (twitchClip) {
         initIframe(`https://clips.twitch.tv/embed?clip=${twitchClip[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 3. Twitch (Записи VOD)
+      // Twitch (VOD записи)
       const twitchVideo = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
       if (twitchVideo) {
         initIframe(`https://player.twitch.tv/?video=${twitchVideo[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 4. Twitch (Каналы Live)
+      // Twitch (Каналы Live)
       const twitchChannel = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
       if (twitchChannel) {
         initIframe(`https://player.twitch.tv/?channel=${twitchChannel[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 5. Kick.com (Записи VOD)
-      const kickVod = url.match(/kick\.com\/(?:video\/|(?:[a-zA-Z0-9_-]+\/videos\/))([a-zA-Z0-9_-]+)/i);
-      if (kickVod) {
-        initIframe(`https://player.kick.com/video/${kickVod[1]}?autoplay=true`);
-        return;
-      }
-
-      // 6. Kick.com (Стримы каналов)
+      // Kick.com (Прямые эфиры каналов)
       const kickChannel = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
       const kickReserved = ['video', 'videos', 'categories', 'terms', 'privacy', 'auth'];
       if (kickChannel && !kickReserved.includes(kickChannel[1].toLowerCase())) {
@@ -127,7 +124,7 @@
         return;
       }
 
-      // 7. Vimeo (все типы ссылок + loop)
+      // Vimeo (все структуры ссылок + loop)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -137,49 +134,53 @@
         return;
       }
 
-      // 8. Coub (Зацикленные видео)
+      // Coub (Зацикленные видео)
       const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
       if (coubMatch) {
         initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
         return;
       }
 
-      // 9. Rutube (Видео, Shorts, Эфиры)
+      // Rutube (Видео, Shorts, Эфиры)
       const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // 10. VK Видео и Клипы (с loop=1)
+      // VK Видео и Клипы (с параметром loop=1)
       const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1&loop=1`);
         return;
       }
 
-      // 11. Одноклассники Видео (ok.ru)
+      // Одноклассники Видео (ok.ru)
       const okMatch = url.match(/(?:ok\.ru|m\.ok\.ru)\/(?:video|videoembed)\/([0-9]+)/i);
       if (okMatch) {
         initIframe(`https://ok.ru/videoembed/${okMatch[1]}?autoplay=1`);
         return;
       }
 
-      // 12. RedTube
+      // ==========================================
+      //           2. ADULT-ВИДЕОХОСТИНГИ
+      // ==========================================
+
+      // RedTube
       const rtMatch = url.match(/redtube\.com\/([0-9]+)/i);
       if (rtMatch) {
         initIframe(`https://embed.redtube.com/?id=${rtMatch[1]}`);
         return;
       }
 
-      // 13. Eporner
+      // Eporner
       const epMatch = url.match(/eporner\.com\/(?:video-|embed\/)([a-zA-Z0-9]+)/i);
       if (epMatch) {
         initIframe(`https://www.eporner.com/embed/${epMatch[1]}/`);
         return;
       }
 
-      // 14. XVideos (Все зеркала)
+      // XVideos (Все зеркала)
       if (/xvideos\./i.test(currentHost)) {
         const xvMatch = url.match(/video([0-9]+)/i) || url.match(/[?&]id=([0-9]+)/i);
         if (xvMatch) {
@@ -188,7 +189,7 @@
         }
       }
 
-      // 15. XNXX (Все зеркала)
+      // XNXX (Все зеркала)
       if (/xnxx\./i.test(currentHost)) {
         const xnMatch = url.match(/(?:video-([a-zA-Z0-9_-]+)|video([0-9]+))/i);
         if (xnMatch) {
