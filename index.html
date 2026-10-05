@@ -50,7 +50,6 @@
 
     if (targetUrl) {
       try {
-        // Очистка от избыточного двойного экранирования
         if (targetUrl.includes('%3A') || targetUrl.includes('%2F')) {
           targetUrl = decodeURIComponent(targetUrl);
         }
@@ -69,7 +68,13 @@
         return;
       }
 
-      // 2. Vimeo (ID, каналы, группы, закрытые с хэшем)
+      // 2. SoundCloud (через официальный открытый oEmbed API для получения числового ID)
+      if (/soundcloud\.com/i.test(url)) {
+        initSoundCloud(url);
+        return;
+      }
+
+      // 3. Vimeo (ID, каналы, группы, закрытые с хэшем)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -79,83 +84,98 @@
         return;
       }
 
-      // 3. Twitch (Клипы)
+      // 4. Twitch (Клипы)
       const twitchClip = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
       if (twitchClip) {
         initIframe(`https://clips.twitch.tv/embed?clip=${twitchClip[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 4. Twitch (Записи VOD)
+      // 5. Twitch (Записи VOD)
       const twitchVideo = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
       if (twitchVideo) {
         initIframe(`https://player.twitch.tv/?video=${twitchVideo[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 5. Twitch (Прямой эфир канала)
+      // 6. Twitch (Прямой эфир канала)
       const twitchChannel = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
       if (twitchChannel) {
         initIframe(`https://player.twitch.tv/?channel=${twitchChannel[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 6. Kick.com (Стримы)
+      // 7. Kick.com (Стримы)
       const kickMatch = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
       if (kickMatch) {
         initIframe(`https://player.kick.com/${kickMatch[1]}?autoplay=true`);
         return;
       }
 
-      // 7. SoundCloud (Исправленная передача адреса без двойного кодирования)
-      if (/soundcloud\.com/i.test(url)) {
-        initIframe(`https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`);
-        return;
-      }
-
-      // 8. Mixcloud
-      if (/mixcloud\.com/i.test(url)) {
-        initIframe(`https://www.mixcloud.com/widget/iframe/?hide_cover=0&autoplay=1&feed=${encodeURIComponent(url)}`);
-        return;
-      }
-
-      // 9. Coub
+      // 8. Coub
       const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
       if (coubMatch) {
         initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
         return;
       }
 
-      // 10. Bilibili
+      // 9. Bilibili
       const biliMatch = url.match(/bilibili\.com\/video\/([a-zA-Z0-9]+)/i);
       if (biliMatch) {
         initIframe(`https://player.bilibili.com/player.html?bvid=${biliMatch[1]}&autoplay=1`);
         return;
       }
 
-      // 11. Rumble
+      // 10. Rumble
       const rumbleMatch = url.match(/rumble\.com\/(?:embed\/|v)([a-zA-Z0-9_-]+)/i);
       if (rumbleMatch) {
         initIframe(`https://rumble.com/embed/${rumbleMatch[1]}/`);
         return;
       }
 
-      // 12. Rutube (Видео, Shorts, Прямые эфиры)
+      // 11. Rutube (Видео, Shorts, Прямые эфиры)
       const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // 13. VK Видео и Клипы
+      // 12. VK Видео и Клипы
       const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1`);
         return;
       }
 
-      // 14. Резервный режим
+      // Резервный режим
       initIframe(url);
+    }
+
+    // Инициализация SoundCloud через официальный oEmbed
+    function initSoundCloud(trackUrl) {
+      container.innerHTML = '<div style="color:#fff;font-family:sans-serif;">Loading SoundCloud...</div>';
+      
+      fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(trackUrl)}&auto_play=true&visual=true`)
+        .then(response => {
+          if (!response.ok) throw new Error('SoundCloud API error');
+          return response.json();
+        })
+        .then(data => {
+          if (data && data.html) {
+            container.innerHTML = data.html;
+            const iframe = container.querySelector('iframe');
+            if (iframe) {
+              iframe.style.width = '100%';
+              iframe.style.height = '100%';
+              iframe.setAttribute('allow', 'autoplay');
+            }
+          } else {
+            initIframe(trackUrl);
+          }
+        })
+        .catch(() => {
+          initIframe(trackUrl);
+        });
     }
 
     // Инициализация нативного YouTube плеера
@@ -185,7 +205,6 @@
           events: {
             'onReady': (event) => {
               event.target.playVideo();
-              // Перемотка за 1.5с только для конечных видео (отключена для Live)
               setInterval(() => {
                 if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
                   const dur = player.getDuration();
