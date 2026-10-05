@@ -43,6 +43,8 @@
     
     let targetUrl = params.get('url');
     const legacyV = params.get('v');
+    const startTimeParam = parseInt(params.get('start_time'), 10);
+    let softSyncApplied = false;
 
     if (!targetUrl && legacyV) {
       targetUrl = 'https://www.youtube.com/watch?v=' + legacyV;
@@ -58,6 +60,25 @@
       routeMedia(targetUrl.trim());
     }
 
+    // Однократная мягкая синхронизация при первом старте
+    function applySoftSync(player, duration) {
+      if (softSyncApplied || !startTimeParam || isNaN(startTimeParam) || startTimeParam <= 0) return;
+      softSyncApplied = true;
+
+      const now = Math.floor(Date.now() / 1000);
+      const elapsed = now - startTimeParam;
+
+      if (elapsed > 2) {
+        let seekSec = elapsed;
+        if (duration > 0 && isFinite(duration)) {
+          seekSec = elapsed % duration;
+        }
+        if (typeof player.seekTo === 'function') {
+          player.seekTo(seekSec, true);
+        }
+      }
+    }
+
     function routeMedia(url) {
       const parentHost = window.location.hostname || 'localhost';
 
@@ -68,7 +89,14 @@
         return;
       }
 
-      // 2. Vimeo (любые ссылки: ID, каналы, группы, закрытые с хэшем)
+      // 2. PornHub
+      const phMatch = url.match(/pornhub\.com\/(?:view_video\.php\?viewkey=|embed\/)(ph[a-zA-Z0-9]+)/i);
+      if (phMatch) {
+        initIframe(`https://www.pornhub.com/embed/${phMatch[1]}`);
+        return;
+      }
+
+      // 3. Vimeo (любые ссылки: ID, каналы, группы, приватные с хэшем)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -78,60 +106,60 @@
         return;
       }
 
-      // 3. Twitch (Клипы)
+      // 4. Twitch (Клипы)
       const twitchClip = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
       if (twitchClip) {
         initIframe(`https://clips.twitch.tv/embed?clip=${twitchClip[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 4. Twitch (Записи VOD)
+      // 5. Twitch (Записи VOD)
       const twitchVideo = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
       if (twitchVideo) {
         initIframe(`https://player.twitch.tv/?video=${twitchVideo[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 5. Twitch (Прямой эфир канала)
+      // 6. Twitch (Прямой эфир канала)
       const twitchChannel = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
       if (twitchChannel) {
         initIframe(`https://player.twitch.tv/?channel=${twitchChannel[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 6. Kick.com (Стримы)
+      // 7. Kick.com (Стримы)
       const kickMatch = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
       if (kickMatch) {
         initIframe(`https://player.kick.com/${kickMatch[1]}?autoplay=true`);
         return;
       }
 
-      // 7. Coub (Зацикленные видео)
+      // 8. Coub
       const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
       if (coubMatch) {
         initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
         return;
       }
 
-      // 8. Rutube (Видео, Shorts, Прямые эфиры)
+      // 9. Rutube (Видео, Shorts, Прямые эфиры)
       const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // 9. VK Видео и Клипы
+      // 10. VK Видео и Клипы
       const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1`);
         return;
       }
 
-      // Резервный режим (любая другая ссылка открывается во фрейме)
+      // Резервный режим
       initIframe(url);
     }
 
-    // Инициализация нативного YouTube плеера (субтитры отключены по умолчанию)
+    // Инициализация нативного YouTube плеера
     function initYouTube(videoId) {
       container.innerHTML = '<div id="yt-player"></div>';
       
@@ -152,12 +180,18 @@
             'iv_load_policy': 3,
             'modestbranding': 1,
             'playsinline': 1,
-            'cc_load_policy': 0, // Субтитры отключены по умолчанию
+            'cc_load_policy': 0,
             'origin': window.location.origin
           },
           events: {
             'onReady': (event) => {
               event.target.playVideo();
+
+              // Применение мягкой синхронизации на старте (один раз)
+              setTimeout(() => {
+                applySoftSync(player, player.getDuration());
+              }, 600);
+
               // Перемотка за 1.5с только для конечных видео (отключена для Live)
               setInterval(() => {
                 if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
@@ -171,6 +205,9 @@
               }, 100);
             },
             'onStateChange': (event) => {
+              if (event.data === YT.PlayerState.PLAYING) {
+                applySoftSync(player, player.getDuration());
+              }
               if (event.data === YT.PlayerState.ENDED) {
                 player.seekTo(0, true);
                 player.playVideo();
