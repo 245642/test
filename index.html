@@ -3,44 +3,144 @@
 <head>
   <meta charset="utf-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Minimal Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom Clean Player</title>
+  
+  <!-- Стили Plyr через Cloudflare CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css" />
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
     html, body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
       background-color: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    iframe {
-      border: 0;
+
+    /* Растягивание контейнера на 100% экрана телевизора */
+    #player-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      display: block;
+    }
+
+    .plyr, .plyr__video-wrapper {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Оверлей названия видео и канала */
+    #header-overlay {
+      position: absolute;
+      top: 18px;
+      left: 24px;
+      z-index: 10;
+      color: #ffffff;
+      pointer-events: none;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+      transition: opacity 0.4s ease;
+      max-width: 80%;
+    }
+
+    #video-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #video-author {
+      font-size: 13px;
+      color: #cccccc;
+    }
+
+    /* Скрытие заголовка синхронно с элементами управления Plyr */
+    .plyr--hide-controls #header-overlay {
+      opacity: 0;
     }
   </style>
 </head>
 <body>
-  <div id="player" style="width:100%;height:100%;"></div>
+
+  <div id="player-wrapper">
+    <div id="header-overlay">
+      <div id="video-title"></div>
+      <div id="video-author"></div>
+    </div>
+    <div id="player"></div>
+  </div>
+
+  <!-- Библиотека Plyr -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.polyfilled.min.js"></script>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
 
     if (videoId) {
-      const src = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) +
-                  '?autoplay=1' +
-                  '&controls=1' +
-                  '&fs=0' +
-                  '&modestbranding=1' +
-                  '&rel=0' +
-                  '&iv_load_policy=3' +
-                  '&loop=1' +
-                  '&playlist=' + encodeURIComponent(videoId);
+      // 1. Загрузка названия и автора через открытый oEmbed
+      fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' + encodeURIComponent(videoId) + '&format=json')
+        .then(response => {
+          if (response.ok) return response.json();
+          throw new Error('Network error');
+        })
+        .then(data => {
+          document.getElementById('video-title').textContent = data.title || '';
+          document.getElementById('video-author').textContent = data.author_name || '';
+        })
+        .catch(() => {
+          document.getElementById('header-overlay').style.display = 'none';
+        });
 
-      document.getElementById('player').innerHTML = 
-        '<iframe src="' + src + '" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+      // 2. Вставка медиа-контейнера для Plyr
+      const playerContainer = document.getElementById('player');
+      playerContainer.setAttribute('data-plyr-provider', 'youtube');
+      playerContainer.setAttribute('data-plyr-embed-id', videoId);
+
+      // 3. Инициализация кастомного плеера без кнопки fullscreen и лишних элементов
+      const player = new Plyr(playerContainer, {
+        controls: [
+          'play-large',    // Крупная кнопка по центру
+          'play',          // Старт / Пауза
+          'progress',      // Скраббер (полоса перемотки)
+          'current-time',  // Текущее время
+          'duration',      // Длительность
+          'mute',          // Вкл / Выкл звук
+          'volume',        // Ползунок громкости
+          'captions',      // Субтитры
+          'settings'       // Шестеренка (качество, скорость)
+        ],
+        settings: ['captions', 'quality', 'speed'],
+        autoplay: true,
+        muted: false,
+        loop: { active: true },
+        youtube: {
+          noCookie: false,
+          rel: 0,
+          showinfo: 0,
+          iv_load_policy: 3,
+          modestbranding: 1
+        }
+      });
+
+      // Привязка оверлея заголовка к контейнеру Plyr для синхронного затухания
+      player.on('ready', () => {
+        const plyrContainer = document.querySelector('.plyr');
+        if (plyrContainer) {
+          const header = document.getElementById('header-overlay');
+          plyrContainer.appendChild(header);
+        }
+      });
     }
   </script>
 </body>
