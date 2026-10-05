@@ -55,14 +55,14 @@
     function routeMedia(url) {
       const parentHost = window.location.hostname || 'localhost';
 
-      // 1. YouTube (VOD, Shorts, Live, youtu.be)
+      // 1. YouTube (VOD, Shorts, Live, youtu.be) - субтитры выключены по умолчанию
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
       if (ytMatch) {
         initYouTube(ytMatch[1]);
         return;
       }
 
-      // 2. Vimeo (любые типы ссылок: ID, каналы, группы, приватные с хэшем)
+      // 2. Vimeo (любые ссылки: ID, каналы, группы, приватные с хэшем)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -100,32 +100,58 @@
         return;
       }
 
-      // 7. Rutube (Видео, Shorts, Прямые эфиры)
+      // 7. SoundCloud
+      if (/soundcloud\.com/i.test(url)) {
+        initIframe(`https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`);
+        return;
+      }
+
+      // 8. Mixcloud
+      if (/mixcloud\.com/i.test(url)) {
+        initIframe(`https://www.mixcloud.com/widget/iframe/?hide_cover=0&autoplay=1&feed=${encodeURIComponent(url)}`);
+        return;
+      }
+
+      // 9. Coub
+      const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
+      if (coubMatch) {
+        initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
+        return;
+      }
+
+      // 10. Bilibili
+      const biliMatch = url.match(/bilibili\.com\/video\/([a-zA-Z0-9]+)/i);
+      if (biliMatch) {
+        initIframe(`https://player.bilibili.com/player.html?bvid=${biliMatch[1]}&autoplay=1`);
+        return;
+      }
+
+      // 11. Rumble
+      const rumbleMatch = url.match(/rumble\.com\/(?:embed\/|v)([a-zA-Z0-9_-]+)/i);
+      if (rumbleMatch) {
+        initIframe(`https://rumble.com/embed/${rumbleMatch[1]}/`);
+        return;
+      }
+
+      // 12. Rutube (Видео, Shorts, Прямые эфиры)
       const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // 8. VK Видео и Клипы
+      // 13. VK Видео и Клипы
       const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1`);
         return;
       }
 
-      // 9. Dailymotion (Официальный стабильный эндпоинт)
-      const dmMatch = url.match(/(?:dai\.ly\/|dailymotion\.com\/video\/)([a-zA-Z0-9]+)/i);
-      if (dmMatch) {
-        initIframe(`https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1`);
-        return;
-      }
-
-      // Резервный режим
+      // 14. Резервный режим (Iframe)
       initIframe(url);
     }
 
-    // Инициализация нативного YouTube плеера
+    // Инициализация нативного YouTube плеера (субтитры отключены по умолчанию)
     function initYouTube(videoId) {
       container.innerHTML = '<div id="yt-player"></div>';
       
@@ -146,12 +172,13 @@
             'iv_load_policy': 3,
             'modestbranding': 1,
             'playsinline': 1,
+            'cc_load_policy': 0, // Субтитры отключены по умолчанию
             'origin': window.location.origin
           },
           events: {
             'onReady': (event) => {
               event.target.playVideo();
-              // Перемотка за 1.5с только для конечных видео (отключена для Live)
+              // Перемотка за 1.5с только для видео фиксированной длительности (VOD/Shorts)
               setInterval(() => {
                 if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
                   const dur = player.getDuration();
