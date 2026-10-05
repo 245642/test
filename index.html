@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Media Player - Full MultiPack</title>
+  <title>Universal Media Player</title>
   <style>
     html, body {
       margin: 0;
@@ -84,46 +84,50 @@
       const hostMatch = url.match(/https?:\/\/([^/]+)/i);
       const currentHost = hostMatch ? hostMatch[1] : '';
 
-      // ==========================================
-      //           1. ОСНОВНЫЕ МЕДИАСЕРВИСЫ
-      // ==========================================
-
-      // YouTube (VOD, Shorts, Live, youtu.be)
+      // 1. YouTube (VOD, Shorts, Live, youtu.be)
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
       if (ytMatch) {
         initYouTube(ytMatch[1]);
         return;
       }
 
-      // Twitch (Клипы)
+      // 2. Twitch (Клипы)
       const twitchClip = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
       if (twitchClip) {
         initIframe(`https://clips.twitch.tv/embed?clip=${twitchClip[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // Twitch (VOD записи)
+      // 3. Twitch (Записи VOD)
       const twitchVideo = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
       if (twitchVideo) {
         initIframe(`https://player.twitch.tv/?video=${twitchVideo[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // Twitch (Каналы Live)
+      // 4. Twitch (Каналы Live)
       const twitchChannel = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
       if (twitchChannel) {
         initIframe(`https://player.twitch.tv/?channel=${twitchChannel[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // Kick.com (Стримы)
-      const kickMatch = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
-      if (kickMatch) {
-        initIframe(`https://player.kick.com/${kickMatch[1]}?autoplay=true`);
+      // 5. Kick.com (Записи VOD)
+      const kickVod = url.match(/kick\.com\/(?:video\/|(?:[a-zA-Z0-9_-]+\/videos\/))([a-zA-Z0-9_-]+)/i);
+      if (kickVod) {
+        initIframe(`https://player.kick.com/video/${kickVod[1]}?autoplay=true`);
         return;
       }
 
-      // Vimeo (все структуры ссылок + loop)
+      // 6. Kick.com (Стримы каналов)
+      const kickChannel = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
+      const kickReserved = ['video', 'videos', 'categories', 'terms', 'privacy', 'auth'];
+      if (kickChannel && !kickReserved.includes(kickChannel[1].toLowerCase())) {
+        initIframe(`https://player.kick.com/${kickChannel[1]}?autoplay=true`);
+        return;
+      }
+
+      // 7. Vimeo (все типы ссылок + loop)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -133,65 +137,49 @@
         return;
       }
 
-      // Coub (Зацикленные видео со звуком)
+      // 8. Coub (Зацикленные видео)
       const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
       if (coubMatch) {
         initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
         return;
       }
 
-      // Rutube (Видео, Shorts, Эфиры)
+      // 9. Rutube (Видео, Shorts, Эфиры)
       const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // VK Видео и Клипы (с параметром loop=1)
+      // 10. VK Видео и Клипы (с loop=1)
       const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1&loop=1`);
         return;
       }
 
-      // Дзен Видео (dzen.ru)
-      const dzenMatch = url.match(/dzen\.ru\/(?:video\/watch|embed)\/([a-zA-Z0-9_-]+)/i);
-      if (dzenMatch) {
-        initIframe(`https://dzen.ru/embed/${dzenMatch[1]}?from_block=partner&from=you&mute=0&autoplay=1`);
-        return;
-      }
-
-      // Одноклассники Видео (ok.ru)
+      // 11. Одноклассники Видео (ok.ru)
       const okMatch = url.match(/(?:ok\.ru|m\.ok\.ru)\/(?:video|videoembed)\/([0-9]+)/i);
       if (okMatch) {
         initIframe(`https://ok.ru/videoembed/${okMatch[1]}?autoplay=1`);
         return;
       }
 
-      // Mail.ru Видео (my.mail.ru)
-      if (/my\.mail\.ru\//i.test(url)) {
-        const mailMatch = url.match(/my\.mail\.ru\/(?:video\/embed\/)?(.+?)(?:\.html)?$/i);
-        if (mailMatch) {
-          initIframe(`https://my.mail.ru/video/embed/${mailMatch[1]}`);
-          return;
-        }
+      // 12. RedTube
+      const rtMatch = url.match(/redtube\.com\/([0-9]+)/i);
+      if (rtMatch) {
+        initIframe(`https://embed.redtube.com/?id=${rtMatch[1]}`);
+        return;
       }
 
-      // ==========================================
-      //           2. ADULT-ВИДЕОХОСТИНГИ
-      // ==========================================
-
-      // PornHub (Все зеркала: rt, de, org и др. + Shorties)
-      if (/pornhub\./i.test(currentHost)) {
-        const phKey = url.match(/[?&]viewkey=([a-zA-Z0-9_-]+)/i) || 
-                      url.match(/(?:shorties|shorts|embed)\/([a-zA-Z0-9_-]+)/i);
-        if (phKey) {
-          initIframe(`https://${currentHost}/embed/${phKey[1]}`);
-          return;
-        }
+      // 13. Eporner
+      const epMatch = url.match(/eporner\.com\/(?:video-|embed\/)([a-zA-Z0-9]+)/i);
+      if (epMatch) {
+        initIframe(`https://www.eporner.com/embed/${epMatch[1]}/`);
+        return;
       }
 
-      // XVideos (Все зеркала)
+      // 14. XVideos (Все зеркала)
       if (/xvideos\./i.test(currentHost)) {
         const xvMatch = url.match(/video([0-9]+)/i) || url.match(/[?&]id=([0-9]+)/i);
         if (xvMatch) {
@@ -200,7 +188,7 @@
         }
       }
 
-      // XNXX (Все зеркала)
+      // 15. XNXX (Все зеркала)
       if (/xnxx\./i.test(currentHost)) {
         const xnMatch = url.match(/(?:video-([a-zA-Z0-9_-]+)|video([0-9]+))/i);
         if (xnMatch) {
@@ -210,61 +198,7 @@
         }
       }
 
-      // SpankBang
-      const sbMatch = url.match(/spankbang\.com\/([a-zA-Z0-9]+)\/(?:video|embed)/i);
-      if (sbMatch) {
-        initIframe(`https://spankbang.com/${sbMatch[1]}/embed/`);
-        return;
-      }
-
-      // RedTube
-      const rtMatch = url.match(/redtube\.com\/([0-9]+)/i);
-      if (rtMatch) {
-        initIframe(`https://embed.redtube.com/?id=${rtMatch[1]}`);
-        return;
-      }
-
-      // Eporner
-      const epMatch = url.match(/eporner\.com\/(?:video-|embed\/)([a-zA-Z0-9]+)/i);
-      if (epMatch) {
-        initIframe(`https://www.eporner.com/embed/${epMatch[1]}/`);
-        return;
-      }
-
-      // ==========================================
-      //           3. ADULT-ТРАНСЛЯЦИИ (LIVE)
-      // ==========================================
-
-      // Chaturbate (Все зеркала)
-      if (/chaturbate\.com/i.test(currentHost)) {
-        const cbMatch = url.match(/chaturbate\.com\/([a-zA-Z0-9_-]+)\/?/i);
-        const reserved = ['tags', 'female-cams', 'male-cams', 'couple-cams', 'trans-cams', 'auth', 'terms'];
-        if (cbMatch && !reserved.includes(cbMatch[1].toLowerCase())) {
-          initIframe(`https://${currentHost}/embed/${cbMatch[1]}/?bgcolor=black`);
-          return;
-        }
-      }
-
-      // Stripchat (Все зеркала)
-      if (/stripchat\./i.test(currentHost)) {
-        const scMatch = url.match(/stripchat\.[a-z.]+\/([a-zA-Z0-9_-]+)\/?/i);
-        const scReserved = ['tags', 'categories', 'login', 'terms', 'privacy'];
-        if (scMatch && !scReserved.includes(scMatch[1].toLowerCase())) {
-          initIframe(`https://${currentHost}/embed/${scMatch[1]}`);
-          return;
-        }
-      }
-
-      // BongaCams (Все зеркала)
-      if (/bongacams\./i.test(currentHost)) {
-        const bcMatch = url.match(/bongacams\.[a-z.]+\/([a-zA-Z0-9_-]+)\/?/i);
-        if (bcMatch) {
-          initIframe(`https://${currentHost}/embed/${bcMatch[1]}`);
-          return;
-        }
-      }
-
-      // Резервный режим (Iframe)
+      // Резервный режим (любая ссылка во фрейме)
       initIframe(url);
     }
 
@@ -289,7 +223,7 @@
             'iv_load_policy': 3,
             'modestbranding': 1,
             'playsinline': 1,
-            'cc_load_policy': 0,
+            'cc_load_policy': 0, // Субтитры выключены по умолчанию
             'origin': window.location.origin
           },
           events: {
