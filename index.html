@@ -62,7 +62,7 @@
         return;
       }
 
-      // 2. Vimeo (любые ссылки: vimeo.com/ID, channels/..., groups/..., приватные с хэшем)
+      // 2. Vimeo (любые типы ссылок: ID, каналы, группы, приватные с хэшем)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -114,10 +114,10 @@
         return;
       }
 
-      // 9. Dailymotion (короткие dai.ly и длинные с любым слагом)
+      // 9. Dailymotion (Официальный стабильный эндпоинт)
       const dmMatch = url.match(/(?:dai\.ly\/|dailymotion\.com\/video\/)([a-zA-Z0-9]+)/i);
       if (dmMatch) {
-        initIframe(`https://geo.dailymotion.com/player.html?video=${dmMatch[1]}`);
+        initIframe(`https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1`);
         return;
       }
 
