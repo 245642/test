@@ -4,175 +4,94 @@
   <meta charset="utf-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minimal YouTube Player</title>
-  
-  <!-- Стили Plyr через Cloudflare CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css" />
-
+  <title>Native YouTube Player</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
     html, body {
       margin: 0;
       padding: 0;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background-color: #000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #000000;
     }
 
-    #player-wrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
+    #player {
+      width: 100vw;
+      height: 100vh;
+      border: 0;
     }
 
-    .plyr, .plyr__video-wrapper {
+    iframe {
       width: 100% !important;
       height: 100% !important;
-    }
-
-    /* Нижняя панель поверх всех масок */
-    .plyr__controls {
-      z-index: 10 !important;
-    }
-
-    /* Защитная шторка паузы (блокирует плашки YouTube) */
-    #pause-shield {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000000;
-      z-index: 5;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    #pause-shield.active {
-      display: flex;
-    }
-
-    .shield-play-btn {
-      width: 64px;
-      height: 64px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s ease, background 0.2s ease;
-    }
-
-    #pause-shield:hover .shield-play-btn {
-      transform: scale(1.1);
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    .shield-play-btn svg {
-      width: 28px;
-      height: 28px;
-      fill: #ffffff;
-      margin-left: 3px;
+      border: 0 !important;
+      display: block;
     }
   </style>
 </head>
 <body>
 
-  <div id="player-wrapper">
-    <!-- Защитная шторка на паузу -->
-    <div id="pause-shield">
-      <div class="shield-play-btn">
-        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </div>
-    </div>
+  <div id="player"></div>
 
-    <!-- Контейнер плеера -->
-    <div id="player"></div>
-  </div>
-
-  <!-- Движок Plyr -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.polyfilled.min.js"></script>
+  <!-- Официальный скрипт YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 
   <script>
+    let player;
+    let loopCheckInterval;
+
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
 
-    if (videoId) {
-      const playerContainer = document.getElementById('player');
-      playerContainer.setAttribute('data-plyr-provider', 'youtube');
-      playerContainer.setAttribute('data-plyr-embed-id', videoId);
+    function onYouTubeIframeAPIReady() {
+      if (!videoId) return;
 
-      // Инициализация плеера с жестко ограниченным набором контроллеров
-      const player = new Plyr(playerContainer, {
-        controls: [
-          'play-large',    // Крупная кнопка старта по центру
-          'play',          // Кнопка старт/пауза в панели
-          'progress',      // Скраббер (полоса перемотки)
-          'current-time',  // Текущее время
-          'duration',      // Полная длительность
-          'mute',          // Звук вкл/выкл
-          'volume',        // Регулятор громкости
-          'captions',      // Меню субтитров
-          'settings'       // Шестеренка (качество, скорость, субтитры)
-        ],
-        settings: ['captions', 'quality', 'speed'],
-        autoplay: true,
-        muted: false,
-        youtube: {
-          noCookie: false,
-          rel: 0,
-          showinfo: 0,
-          iv_load_policy: 3,
-          modestbranding: 1
+      player = new YT.Player('player', {
+        width: '100%',
+        height: '100%',
+        videoId: videoId,
+        playerVars: {
+          'autoplay': 1,
+          'controls': 1,
+          'fs': 0,               // Отключение кнопки полного экрана
+          'rel': 0,              // Отключение сторонних рекомендаций
+          'iv_load_policy': 3,   // Отключение аннотаций авторов
+          'modestbranding': 1,   // Минимизация логотипов
+          'playsinline': 1,
+          'enablejsapi': 1,
+          'origin': window.location.origin
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
         }
       });
+    }
 
-      const pauseShield = document.getElementById('pause-shield');
+    function onPlayerReady(event) {
+      event.target.playVideo();
 
-      // Клик по экрану в режиме паузы возобновляет видео
-      pauseShield.addEventListener('click', () => {
-        player.play();
-      });
+      // Упреждающий сброс за 1.5 секунды до конца (блокирует экран окончания и рекламу)
+      clearInterval(loopCheckInterval);
+      loopCheckInterval = setInterval(() => {
+        if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
+          const duration = player.getDuration();
+          const currentTime = player.getCurrentTime();
 
-      // Событие паузы: активируем глухую шторку поверх фрейма
-      player.on('pause', () => {
-        if (player.currentTime > 0.5) {
-          pauseShield.classList.add('active');
-        }
-      });
-
-      // Событие старта: скрываем шторку
-      player.on('play', () => {
-        pauseShield.classList.remove('active');
-      });
-
-      // Упреждающий сброс за 1.2 секунды до конца (исключает пост-ролл рекламу и рекомендации)
-      setInterval(() => {
-        if (player && player.playing && player.duration > 2.0) {
-          if (player.currentTime >= player.duration - 1.2) {
-            player.currentTime = 0;
-            player.play();
+          if (duration > 3.0 && currentTime >= (duration - 1.5)) {
+            player.seekTo(0, true);
+            player.playVideo();
           }
         }
       }, 100);
+    }
 
-      // Монтирование защитной шторки внутрь контейнера плеера
-      player.on('ready', () => {
-        const plyrContainer = document.querySelector('.plyr');
-        if (plyrContainer) {
-          plyrContainer.appendChild(pauseShield);
-        }
-      });
+    function onPlayerStateChange(event) {
+      // Резервный перезапуск, если плеер все же перешел в статус завершения (код 0)
+      if (event.data === YT.PlayerState.ENDED) {
+        player.seekTo(0, true);
+        player.playVideo();
+      }
     }
   </script>
 </body>
