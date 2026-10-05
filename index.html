@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Media Player</title>
+  <title>Universal Clean Media Player</title>
   <style>
     html, body {
       margin: 0;
@@ -68,7 +68,7 @@
         return;
       }
 
-      // 2. Vimeo (любые ссылки: ID, каналы, группы, приватные с хэшем)
+      // 2. Vimeo (любые ссылки: ID, каналы, группы, закрытые с хэшем)
       const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
       if (vimeoMatch) {
         const vId = vimeoMatch[1];
@@ -106,7 +106,7 @@
         return;
       }
 
-      // 7. Coub
+      // 7. Coub (Зацикленные видео)
       const coubMatch = url.match(/coub\.com\/(?:view|embed)\/([a-zA-Z0-9]+)/i);
       if (coubMatch) {
         initIframe(`https://coub.com/embed/${coubMatch[1]}?autoplay=true&autoloop=true`);
@@ -127,25 +127,11 @@
         return;
       }
 
-      // 10. Bilibili
-      const biliMatch = url.match(/bilibili\.com\/video\/([a-zA-Z0-9]+)/i);
-      if (biliMatch) {
-        initIframe(`https://player.bilibili.com/player.html?bvid=${biliMatch[1]}&autoplay=1`);
-        return;
-      }
-
-      // 11. Rumble
-      const rumbleMatch = url.match(/rumble\.com\/(?:embed\/|v)([a-zA-Z0-9_-]+)/i);
-      if (rumbleMatch) {
-        initIframe(`https://rumble.com/embed/${rumbleMatch[1]}/`);
-        return;
-      }
-
-      // Резервный режим
+      // Резервный режим (любая другая ссылка открывается во фрейме)
       initIframe(url);
     }
 
-    // Инициализация нативного YouTube плеера
+    // Инициализация нативного YouTube плеера (субтитры отключены по умолчанию)
     function initYouTube(videoId) {
       container.innerHTML = '<div id="yt-player"></div>';
       
@@ -166,12 +152,13 @@
             'iv_load_policy': 3,
             'modestbranding': 1,
             'playsinline': 1,
-            'cc_load_policy': 0, // Субтитры выключены по умолчанию
+            'cc_load_policy': 0, // Субтитры отключены по умолчанию
             'origin': window.location.origin
           },
           events: {
             'onReady': (event) => {
               event.target.playVideo();
+              // Перемотка за 1.5с только для конечных видео (отключена для Live)
               setInterval(() => {
                 if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
                   const dur = player.getDuration();
