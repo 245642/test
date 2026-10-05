@@ -4,11 +4,7 @@
   <meta charset="utf-8">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Universal Media Router</title>
-  
-  <!-- HLS.js для онлайн-телевидения (.m3u8) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
-
+  <title>Universal Clean Media Player</title>
   <style>
     html, body {
       margin: 0;
@@ -28,12 +24,11 @@
       background: #000;
     }
 
-    iframe, video {
+    iframe {
       width: 100% !important;
       height: 100% !important;
       border: 0 !important;
       display: block;
-      object-fit: contain;
       background: #000;
     }
   </style>
@@ -67,91 +62,66 @@
         return;
       }
 
-      // 2. Twitch (Клипы)
-      const twitchClipMatch = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
-      if (twitchClipMatch) {
-        initIframe(`https://clips.twitch.tv/embed?clip=${twitchClipMatch[1]}&parent=${parentHost}&autoplay=true`);
+      // 2. Vimeo (любые ссылки: vimeo.com/ID, channels/..., groups/..., приватные с хэшем)
+      const vimeoMatch = url.match(/vimeo\.com\/(?:.*\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
+      if (vimeoMatch) {
+        const vId = vimeoMatch[1];
+        const vHash = vimeoMatch[2];
+        const hashParam = vHash ? `?h=${vHash}&autoplay=1&loop=1` : `?autoplay=1&loop=1`;
+        initIframe(`https://player.vimeo.com/video/${vId}${hashParam}`);
         return;
       }
 
-      // 3. Twitch (Записи VOD)
-      const twitchVideoMatch = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
-      if (twitchVideoMatch) {
-        initIframe(`https://player.twitch.tv/?video=${twitchVideoMatch[1]}&parent=${parentHost}&autoplay=true`);
+      // 3. Twitch (Клипы)
+      const twitchClip = url.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[a-zA-Z0-9_]+\/clip\/)([a-zA-Z0-9_-]+)/i);
+      if (twitchClip) {
+        initIframe(`https://clips.twitch.tv/embed?clip=${twitchClip[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 4. Twitch (Прямой эфир канала)
-      const twitchChannelMatch = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
-      if (twitchChannelMatch) {
-        initIframe(`https://player.twitch.tv/?channel=${twitchChannelMatch[1]}&parent=${parentHost}&autoplay=true`);
+      // 4. Twitch (Записи VOD)
+      const twitchVideo = url.match(/twitch\.tv\/videos\/([0-9]+)/i);
+      if (twitchVideo) {
+        initIframe(`https://player.twitch.tv/?video=${twitchVideo[1]}&parent=${parentHost}&autoplay=true`);
         return;
       }
 
-      // 5. Kick.com (Стримы)
+      // 5. Twitch (Прямой эфир канала)
+      const twitchChannel = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/i);
+      if (twitchChannel) {
+        initIframe(`https://player.twitch.tv/?channel=${twitchChannel[1]}&parent=${parentHost}&autoplay=true`);
+        return;
+      }
+
+      // 6. Kick.com (Стримы и видео)
       const kickMatch = url.match(/kick\.com\/([a-zA-Z0-9_-]+)/i);
       if (kickMatch) {
         initIframe(`https://player.kick.com/${kickMatch[1]}?autoplay=true`);
         return;
       }
 
-      // 6. Телевидение IPTV / HLS (.m3u8)
-      if (/\.m3u8(\?.*)?$/i.test(url)) {
-        initHlsStream(url);
-        return;
-      }
-
-      // 7. Прямые видеофайлы (.mp4, .webm, .mov, .m4v)
-      if (/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url)) {
-        initDirectVideo(url);
-        return;
-      }
-
-      // 8. Vimeo (Live Event)
-      const vimeoEventMatch = url.match(/vimeo\.com\/event\/([0-9]+)/i);
-      if (vimeoEventMatch) {
-        initIframe(`https://vimeo.com/event/${vimeoEventMatch[1]}/embed`);
-        return;
-      }
-
-      // 9. Vimeo (Обычные видео)
-      const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
-      if (vimeoMatch) {
-        initIframe(`https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&loop=1`);
-        return;
-      }
-
-      // 10. Rutube (Видео и Shorts)
-      const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts)\/([a-zA-Z0-9]+)/i);
+      // 7. Rutube (Видео, Shorts, Прямые эфиры)
+      const rutubeMatch = url.match(/rutube\.ru\/(?:video|shorts|play\/embed)\/([a-zA-Z0-9]+)/i);
       if (rutubeMatch) {
         initIframe(`https://rutube.ru/play/embed/${rutubeMatch[1]}/`);
         return;
       }
 
-      // 11. VK Видео и Клипы
-      const vkMatch = url.match(/(?:vk\.com\/(?:video|clip)|vkvideo\.ru\/video)(-?[0-9]+)_([0-9]+)/i);
+      // 8. VK Видео и Клипы
+      const vkMatch = url.match(/(?:vk\.com|vkvideo\.ru)\/(?:video|clip)(-?[0-9]+)_([0-9]+)/i);
       if (vkMatch) {
         initIframe(`https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2&autoplay=1`);
         return;
       }
 
-      // 12. Dailymotion (длинные со слагом и короткие dai.ly)
-      const dmShort = url.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
-      const dmLong = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/i);
-      if (dmShort || dmLong) {
-        const dmId = dmShort ? dmShort[1] : dmLong[1];
-        initIframe(`https://geo.dailymotion.com/player.html?video=${dmId}`);
+      // 9. Dailymotion (короткие dai.ly и длинные с любым слагом)
+      const dmMatch = url.match(/(?:dai\.ly\/|dailymotion\.com\/video\/)([a-zA-Z0-9]+)/i);
+      if (dmMatch) {
+        initIframe(`https://geo.dailymotion.com/player.html?video=${dmMatch[1]}`);
         return;
       }
 
-      // 13. Rumble
-      const rumbleMatch = url.match(/rumble\.com\/(?:embed\/|v)([a-zA-Z0-9_-]+)/i);
-      if (rumbleMatch) {
-        initIframe(`https://rumble.com/embed/${rumbleMatch[1]}/`);
-        return;
-      }
-
-      // Резервный режим (Iframe)
+      // Резервный режим
       initIframe(url);
     }
 
@@ -181,7 +151,7 @@
           events: {
             'onReady': (event) => {
               event.target.playVideo();
-              // Перемотка за 1.5с только для конечных роликов (отключена для прямых эфиров)
+              // Перемотка за 1.5с только для конечных видео (отключена для Live)
               setInterval(() => {
                 if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
                   const dur = player.getDuration();
@@ -204,27 +174,6 @@
       };
     }
 
-    // Воспроизведение IPTV / HLS стримов
-    function initHlsStream(url) {
-      container.innerHTML = `<video id="video-stream" controls autoplay playsinline></video>`;
-      const video = document.getElementById('video-stream');
-      if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.play().catch(() => {});
-      }
-    }
-
-    // Воспроизведение прямых MP4 файлов
-    function initDirectVideo(url) {
-      container.innerHTML = `<video src="${url}" controls autoplay loop playsinline></video>`;
-    }
-
-    // Встраивание фрейма
     function initIframe(src) {
       container.innerHTML = `<iframe src="${src}" allow="autoplay; fullscreen; encrypted-media"></iframe>`;
     }
